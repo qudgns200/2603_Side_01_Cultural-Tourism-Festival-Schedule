@@ -2,7 +2,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // 1. API 데이터 요청 처리 (반드시 전용 경로 사용)
+    // 1. API 데이터 요청 처리
     if (url.pathname === "/api/festivals") {
       const serviceKey = 'a927afc2f6eca450e11c1db2f30c6011600f238f313eb0a7c36294708698a890';
       const baseUrl = 'http://api.data.go.kr/openapi/tn_pubr_public_cltur_fstvl_api';
@@ -53,12 +53,12 @@ export default {
       });
     }
 
-    // 2. /list.html 접속 시 파일 서빙
-    if (url.pathname === "/list.html") {
-      return env.ASSETS.fetch(request);
+    // 2. 루트(/) 접속 시 index.html 서빙
+    if (url.pathname === "/" || url.pathname === "") {
+      return env.ASSETS.fetch(new Request(url.origin + "/index.html", request));
     }
 
-    // 3. 첫 접속 (/) 포함 나머지 모든 요청은 index.html 서빙
+    // 3. /list.html 등 기타 정적 파일 요청 처리
     return env.ASSETS.fetch(request);
   }
 }
