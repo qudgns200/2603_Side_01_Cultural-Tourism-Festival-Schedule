@@ -1,127 +1,149 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>K-Festival | 대한민국 문화관광축제 스케줄러</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&family=Montserrat:wght@800&display=swap" rel="stylesheet">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>K-FESTIVAL - 이번 주말, 어디 갈까?</title>
 
-        body {
-            font-family: 'Noto Sans KR', sans-serif;
-            min-height: 100vh;
-            background: linear-gradient(135deg, #ff6b9d 0%, #c44dff 50%, #4facfe 100%);
-            overflow-x: hidden;
-        }
+<meta name="description" content="우리 동네에서 열리는 축제와 문화행사를 쉽게 찾아보세요. 이번 주말 전국의 축제를 지역·무료·관심사별로 발견할 수 있습니다.">
+<meta name="theme-color" content="#c44dff">
+<link rel="canonical" href="https://ctfschedule.qudgns200.workers.dev/">
 
-        header {
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            background: rgba(0, 0, 0, 0.25);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 1rem 5%;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
+<meta property="og:type" content="website">
+<meta property="og:locale" content="ko_KR">
+<meta property="og:site_name" content="K-FESTIVAL">
+<meta property="og:title" content="K-FESTIVAL - 이번 주말, 어디 갈까?">
+<meta property="og:description" content="이번 주말 전국의 축제와 문화행사를 찾아보세요.">
+<meta property="og:url" content="https://ctfschedule.qudgns200.workers.dev/">
+<meta name="twitter:card" content="summary">
 
-        .logo-text {
-            font-family: 'Montserrat', sans-serif;
-            font-size: 1.6rem;
-            font-weight: 800;
-            color: #fff;
-            letter-spacing: -1px;
-        }
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%89%3C/text%3E%3C/svg%3E">
 
-        .badge {
-            background: linear-gradient(135deg, #ff6b9d, #ffa84c);
-            color: #fff;
-            padding: 0.5rem 1.2rem;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@800&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
 
-        .hero {
-            padding: 4rem 5% 2.5rem;
-            text-align: center;
-            color: #fff;
-        }
-
-        .hero h1 {
-            font-size: clamp(2rem, 5vw, 3.5rem);
-            font-weight: 900;
-            line-height: 1.2;
-            margin-bottom: 1rem;
-            text-shadow: 0 2px 20px rgba(0, 0, 0, 0.2);
-        }
-
-        .hero h1 span {
-            background: linear-gradient(135deg, #ffecd2, #ffa84c);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .hero p {
-            font-size: 1.1rem;
-            color: rgba(255, 255, 255, 0.85);
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
-        .content-area {
-            padding: 2rem 5% 4rem;
-        }
-
-        .iframe-wrapper {
-            width: 100%;
-            height: 800px;
-            background: #fff;
-            border-radius: 24px;
-            overflow: hidden;
-            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.2);
-        }
-
-        iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
-
-        @media (max-width: 768px) {
-            .hero { padding: 3rem 5% 1.5rem; }
-            .iframe-wrapper { height: 600px; }
-            .badge { display: none; }
-        }
-    </style>
+<link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-    <header>
-        <div class="logo-text">K-FESTIVAL</div>
-        <div class="badge">Live Schedule</div>
-    </header>
 
-    <section class="hero">
-        <h1>지금, 대한민국이<br><span>축제</span> 중이다</h1>
-        <p>오늘 열리는 축제를 바로 확인하세요.</p>
+<a class="skip-link" href="#results">본문으로 건너뛰기</a>
+
+<header class="site-header">
+  <div class="header-inner">
+    <span class="logo">K-FESTIVAL</span>
+    <button type="button" id="fav-toggle" class="fav-count" aria-pressed="false">
+      <span aria-hidden="true">❤️</span>
+      <span>찜한 행사</span>
+      <span class="fav-badge" id="fav-badge">0</span>
+    </button>
+  </div>
+</header>
+
+<main>
+  <!-- ── 히어로 ─────────────────────────────────────────── -->
+  <section class="hero">
+    <h1>이번 주말,<br><span class="accent">어디 갈까?</span></h1>
+    <p class="hero-sub">우리 동네에서 열리는 축제와 문화행사를 쉽고 빠르게 찾아보세요.</p>
+    <p class="weekend-line" id="weekend-line">주말 날짜를 확인하는 중…</p>
+
+    <div class="region-picker">
+      <label class="visually-hidden" for="region-select">지역 선택</label>
+      <select id="region-select">
+        <option value="all">전국</option>
+      </select>
+    </div>
+  </section>
+
+  <!-- ── 인기 행사 ───────────────────────────────────────── -->
+  <section class="popular" id="popular" hidden>
+    <div class="section-head">
+      <h2><span aria-hidden="true">🔥</span> 이번 주말 인기 행사</h2>
+    </div>
+    <ul class="rail" id="popular-rail"></ul>
+  </section>
+
+  <!-- ── 시트 (그라디언트 위 흰 면) ──────────────────────── -->
+  <div class="sheet">
+
+    <section class="categories" id="categories">
+      <div class="section-head">
+        <h2><span aria-hidden="true">🔍</span> 무엇을 찾으세요?</h2>
+      </div>
+      <div class="chips" role="group" aria-label="행사 필터">
+        <button type="button" class="chip" data-cat="가족" aria-pressed="false"><span aria-hidden="true">👨‍👩‍👧</span> 가족</button>
+        <button type="button" class="chip" data-cat="공연" aria-pressed="false"><span aria-hidden="true">🎵</span> 공연</button>
+        <button type="button" class="chip" data-cat="체험" aria-pressed="false"><span aria-hidden="true">🎨</span> 체험</button>
+        <button type="button" class="chip" data-cat="야외" aria-pressed="false"><span aria-hidden="true">🌳</span> 야외</button>
+        <button type="button" class="chip" data-cat="먹거리" aria-pressed="false"><span aria-hidden="true">🍜</span> 먹거리</button>
+        <button type="button" class="chip" data-cat="축제" aria-pressed="false"><span aria-hidden="true">🎪</span> 축제</button>
+        <button type="button" class="chip chip-free" id="chip-free" aria-pressed="false"><span aria-hidden="true">🆓</span> 무료</button>
+      </div>
     </section>
 
-    <main class="content-area">
-        <div class="iframe-wrapper">
-            <iframe src="/list.html" title="Festival List"></iframe>
-        </div>
-    </main>
+    <section class="results" id="results">
+      <div class="section-head results-head">
+        <h2><span aria-hidden="true">📅</span> <span id="results-title">이번 주말 행사</span></h2>
+        <p class="result-count" id="result-count" role="status" aria-live="polite"></p>
+      </div>
+
+      <div class="controls" role="group" aria-label="날짜 필터">
+        <button type="button" class="seg is-on" data-date="all" aria-pressed="true">전체</button>
+        <button type="button" class="seg" data-date="sat" aria-pressed="false">토요일</button>
+        <button type="button" class="seg" data-date="sun" aria-pressed="false">일요일</button>
+        <button type="button" class="reset-btn" id="reset-all" hidden>필터 초기화</button>
+      </div>
+
+      <!-- 상태 영역: 로딩 / 오류 / 빈 결과 -->
+      <div id="state-area"></div>
+
+      <ul class="grid" id="grid" aria-busy="true"></ul>
+    </section>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <p>출처: 한국관광공사 TourAPI · 공공데이터포털</p>
+  <p><a href="https://github.com/qudgns200/Cultural-Tourism-Festival-Schedule" target="_blank" rel="noopener noreferrer">GitHub</a></p>
+</footer>
+
+<!-- ── 상세 모달 ─────────────────────────────────────────── -->
+<dialog id="detail-dialog" aria-labelledby="detail-title">
+  <div class="dialog-inner">
+    <button type="button" class="dialog-close" id="detail-close" aria-label="닫기"><span aria-hidden="true">✕</span></button>
+    <div id="detail-body"></div>
+  </div>
+</dialog>
+
+<!--
+  카드 템플릿.
+  API 문자열은 전부 textContent/setAttribute로만 채운다 (innerHTML 미사용 → XSS 구조적 차단).
+-->
+<template id="card-tpl">
+  <li class="card">
+    <article>
+      <div class="card-media">
+        <img class="card-img" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+        <div class="card-noimg" aria-hidden="true">🎪</div>
+        <button type="button" class="fav-btn" aria-pressed="false" aria-label="찜하기"><span aria-hidden="true">🤍</span></button>
+      </div>
+      <div class="card-body">
+        <h3 class="card-title"></h3>
+        <p class="card-loc"><span class="i" aria-hidden="true">📍</span><span class="card-loc-text"></span></p>
+        <p class="card-date"><span class="i" aria-hidden="true">📅</span><span class="card-date-text"></span></p>
+        <p class="card-badges">
+          <span class="badge badge-free" hidden>🆓 무료</span>
+          <span class="badge badge-today" hidden>오늘</span>
+        </p>
+        <ul class="card-tags"></ul>
+      </div>
+      <div class="card-foot">
+        <button type="button" class="detail-btn">상세보기</button>
+      </div>
+    </article>
+  </li>
+</template>
+
+<script src="/js/app.js"></script>
 </body>
 </html>
