@@ -1,7 +1,8 @@
 # 배포 가이드 / 인수인계
 
 **작성:** 2026-08-11
-**상태:** 코드 작업 완료 · 원격 `main` 반영 완료 · **프로덕션 배포만 남음**
+**최종 갱신:** 2026-08-12 (배포 완료)
+**상태:** **프로덕션 배포 완료 · 라이브 정상 동작**
 
 ---
 
@@ -14,10 +15,11 @@
 | 문서 갱신 (API·CLAUDE·README·HISTORY) | ✅ |
 | `main` 병합 및 GitHub 푸시 | ✅ `b996a3f` |
 | 로컬 검증 (Worker 16항목 + 브라우저 43항목) | ✅ 전체 통과 |
-| **프로덕션 배포** | ❌ **미완료** |
+| 프로덕션 배포 | ✅ |
+| `TOUR_API_KEY` 시크릿 등록 | ✅ |
 
-라이브 사이트(https://ctfschedule.qudgns200.workers.dev)는 **아직 구버전(v0.7)**이며,
-상위 API 키 문제로 빈 목록만 반환하는 장애 상태다. 배포하면 해소된다.
+라이브 사이트(https://ctfschedule.qudgns200.workers.dev)는 v2.1 코드로 동작하며,
+`/api/health`가 `ok:true`·`resultCode:"0000"`을, `/api/festivals`가 이번 주말 행사 59건을 반환한다.
 
 ---
 
@@ -68,6 +70,29 @@ npx.cmd wrangler secret delete SERVICE_KEY
 > 65자로 저장되어 `SERVICE_KEY_IS_NOT_REGISTERED_ERROR`가 났고, 마지막 1자를 제거한
 > 64자가 정답이었다. 붙여넣기 후 길이를 반드시 확인할 것.
 
+#### 실제로 겪은 시크릿 사고 2건 (2026-08-12)
+
+**① 이름 자리에 키 값을 넣었다.** `wrangler secret put <키값>` 형태로 실행되어
+이름이 API 키 원문인 시크릿이 생성됐다. **시크릿 이름은 `secret list`와 대시보드에
+평문으로 노출되므로 키가 그대로 드러난다.** `secret list` 결과에 `TOUR_API_KEY` 외의
+이름이 보이면 즉시 삭제할 것.
+
+```powershell
+"y" | npx.cmd wrangler secret delete <노출된_이름>   # 비대화형에서는 y를 파이프로
+```
+
+**② PowerShell 파이프 입력이 값을 오염시켰다.** `$k | wrangler secret put TOUR_API_KEY`로
+등록하면 끝에 개행(`\r\n`)이 붙어 위 65자 사고와 같은 증상이 난다.
+**개행이 끼어들 수 없는 `secret bulk`를 쓰는 것이 안전하다.**
+
+```powershell
+# {"TOUR_API_KEY":"<64자>"} 형태의 JSON을 BOM 없이 쓰고 등록한다
+npx.cmd wrangler secret bulk secrets.json
+Remove-Item secrets.json -Force              # 등록 후 반드시 삭제
+```
+
+> 파일 크기가 `64 + 19`바이트(= 83)면 값에 군더더기가 없다는 뜻이다.
+
 ### 3. 배포
 
 ```powershell
@@ -76,20 +101,43 @@ npx.cmd wrangler deploy
 
 ### 4. 검증
 
+> ⚠️ **`curl`이 아니라 `curl.exe`를 써야 한다.** Windows PowerShell에서 `curl`은
+> `Invoke-WebRequest`의 별칭이라 4xx/5xx 응답을 받으면 본문을 보여주고도 예외를 던진다
+> (`InvalidOperation ... WebException`). 배포 실패로 오해하기 쉽다.
+
 ```powershell
 # ① 상위 API 연결 — 가장 먼저 볼 것
-curl https://ctfschedule.qudgns200.workers.dev/api/health
+curl.exe -s https://ctfschedule.qudgns200.workers.dev/api/health
 # 기대: {"ok":true,"resultCode":"0000","resultMsg":"OK","totalCount":<숫자>,...}
 
 # ② 목록
-curl https://ctfschedule.qudgns200.workers.dev/api/festivals
+curl.exe -s https://ctfschedule.qudgns200.workers.dev/api/festivals
 # 기대: ok:true, weekend가 이번 주말, items 다수
 
 # ③ 실제 호출 수 감시 (일 1,000건 예산 대비)
 npx.cmd wrangler tail
 ```
 
+> ⚠️ **시크릿을 고친 직후 `/api/health`는 최대 5분간 옛 오류를 반환한다.**
+> `handleHealth`가 상위 응답을 `cf.cacheTtl: 300`으로 캐싱하기 때문이다.
+> 즉시 확인하려면 캐시 키가 다른 상세 라우트를 쓴다 —
+> `curl.exe -s https://ctfschedule.qudgns200.workers.dev/api/festivals/4090201`
+
 브라우저로 사이트를 열어 카드·필터·모달·찜하기가 동작하는지도 확인한다.
+
+### 키가 정상인데 프로덕션만 실패할 때 — 원인 분리법
+
+로컬은 되는데 라이브만 `AUTH_ERROR`라면, 아래 순서로 변수를 하나씩 배제한다.
+이번 사고를 몇 단계 만에 시크릿 문제로 확정한 경로다.
+
+| 실행 위치 | 명령 | 사용하는 키 | 실행 네트워크 |
+|-----------|------|-------------|---------------|
+| 로컬 | `wrangler dev` → `:8787` | `.dev.vars` | 내 PC |
+| 엣지 | `wrangler dev --remote` → `:8788` | `.dev.vars` | Cloudflare 엣지 |
+| 프로덕션 | 라이브 URL | Workers Secret | Cloudflare 엣지 |
+
+- 로컬 ✅ / 엣지 ❌ → 엣지 IP 또는 네트워크 경로 문제
+- 로컬 ✅ / 엣지 ✅ / 프로덕션 ❌ → **Workers Secret 값 문제로 확정**
 
 ### 문제 발생 시 롤백
 
@@ -101,9 +149,14 @@ npx.cmd wrangler rollback
 
 ## 배포 후 정리할 것
 
-- [ ] `.dev.vars`에서 `CLOUDFLARE_API_TOKEN` 줄 제거 (무효값이며, Worker `env`로 주입됨)
-- [ ] `HISTORY.md`의 v2.0·v2.1 섹션에 실제 커밋 해시 기입
-- [ ] Cloudflare 대시보드에서 구 `SERVICE_KEY` 시크릿 삭제 확인
+- [x] `.dev.vars`에서 `CLOUDFLARE_API_TOKEN` 줄 제거 — 현재 작업 PC의 `.dev.vars`에는
+      해당 줄이 없음을 확인. 인수인계서를 작성한 다른 환경에 남아 있다면 그쪽에서 제거할 것
+- [x] `.dev.vars` 변수명을 `SERVICE_KEY` → `TOUR_API_KEY`로 통일
+- [x] `HISTORY.md`의 v2.0·v2.1 섹션에 실제 커밋 해시 기입 (`dd0842f`, `b996a3f`)
+- [x] 구 `SERVICE_KEY` 및 이름에 키가 노출된 시크릿 삭제 확인 (현재 `TOUR_API_KEY` 하나만 등록)
+- [ ] 노출됐던 API 키 재발급 검토 — 시크릿 이름으로 평문 노출된 이력이 있다.
+      저장소에 커밋된 적은 없고 계정 소유자만 조회 가능한 위치였으나, 재발급이 확실하다
+- [ ] 브라우저에서 카드·필터·모달·찜하기 최종 확인
 
 ---
 

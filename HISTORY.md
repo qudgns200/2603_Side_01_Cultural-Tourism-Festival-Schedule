@@ -97,6 +97,7 @@ Glassmorphism 스타일을 Vibrant Festival 스타일로 교체했다. 핑크 �
 
 ## v2.0 — K-FESTIVAL 2.0 리뉴얼 (1) 데이터 소스 전환 및 Worker 재작성
 **날짜:** 2026-08-11  
+**커밋:** `dd0842f`  
 **브랜치:** `feat/k-festival-2.0`
 
 `K-FESTIVAL_2.0_개발명세서.md`에 따라 "날짜별 축제 검색"에서 **"이번 주말, 어디 갈까?" 주말 행사 발견 서비스**로 리뉴얼을 시작했다. 이번 단계는 백엔드 전면 재작성이다.
@@ -142,6 +143,7 @@ Glassmorphism 스타일을 Vibrant Festival 스타일로 교체했다. 핑크 �
 
 ## v2.1 — K-FESTIVAL 2.0 리뉴얼 (2) 프론트엔드 재구성 및 문서 갱신
 **날짜:** 2026-08-11  
+**커밋:** `b996a3f`  
 **브랜치:** `feat/k-festival-2.0`
 
 v2.0에서 재작성한 Worker에 맞춰 화면을 전면 재구성했다. iframe 구조를 걷어내고 단일 페이지로 통합했다.
@@ -192,6 +194,47 @@ Playwright로 실제 렌더링을 확인해 다음을 찾아 고쳤다. 정적 �
 
 ---
 
+## v2.2 — 프로덕션 배포 및 시크릿 사고 수습
+**날짜:** 2026-08-12  
+**커밋:** `6e6b170` 이후 (문서 갱신)
+
+v2.1까지의 코드를 프로덕션에 올리고, 배포 직후 드러난 인증 장애를 추적해 해결했다. 코드 변경은 없고 운영·문서 작업이다.
+
+**증상**
+
+배포는 끝났는데 `/api/health`가 계속 `502 AUTH_ERROR` / `SERVICE_KEY_IS_NOT_REGISTERED_ERROR`를 반환했다. 인수인계서(`DEPLOY.md`)에는 "프로덕션 배포 미완료"로 적혀 있었으나, 실제로는 배포는 이미 완료된 상태였고 문제는 시크릿에 있었다.
+
+**원인 — 시크릿 등록 사고 2건**
+
+1. **이름 자리에 키 값을 넣었다.** `wrangler secret put <키값>`이 실행되어 이름이 API 키 원문인 시크릿이 생성돼 있었다. 시크릿 이름은 `secret list`와 대시보드에 평문 노출되므로 키가 그대로 드러난 상태였다. 정작 `TOUR_API_KEY`에는 잘못된 값이 들어 있었다.
+2. **PowerShell 파이프가 값을 오염시켰다.** 재등록 시 `$k | wrangler secret put TOUR_API_KEY`를 쓰자 끝에 개행이 붙어 동일 증상이 반복됐다. `DEPLOY.md`에 기록돼 있던 "키가 65자가 됐던" 사고와 같은 양상이다. 개행이 끼어들 수 없는 `wrangler secret bulk`(JSON 83바이트 = 정확히 64자)로 등록해 해결했다.
+
+**진단 방법 — 변수 분리**
+
+같은 키가 로컬에선 되고 라이브에선 안 되는 상황이라, 실행 위치와 키 출처를 분리해 좁혔다.
+
+- `wrangler dev`(내 PC + `.dev.vars`) → `ok:true`, `totalCount:59`
+- `wrangler dev --remote`(**Cloudflare 엣지** + `.dev.vars`) → `ok:true`
+- 프로덕션(엣지 + Workers Secret) → `AUTH_ERROR`
+
+엣지에서도 `.dev.vars` 키로는 성공했으므로 코드·키·엣지 IP가 모두 배제되고 **Workers Secret 값**만 원인으로 남았다. 이 3단 비교를 `DEPLOY.md`에 표로 남겼다.
+
+**진단을 흐렸던 두 가지**
+
+- **`curl` 별칭** — Windows PowerShell의 `curl`은 `Invoke-WebRequest` 별칭이라 502에서 본문을 보여주고도 예외를 던진다. 배포 실패로 오해하기 쉬워 `curl.exe`로 정정했다
+- **5분 캐시** — `handleHealth`가 상위 응답을 `cf.cacheTtl: 300`으로 캐싱해, 시크릿을 고친 뒤에도 옛 오류가 남아 있었다. 캐시 키가 다른 상세 라우트로 우회해 확인했다
+
+**검증 결과** — `/api/health` `ok:true`·`resultCode:"0000"`·`totalCount:59`, `/api/festivals` 이번 주말(2026-08-15~16) 59건 정상 반환, 상세 라우트 정상. 현재 등록된 시크릿은 `TOUR_API_KEY` 하나뿐이다.
+
+**주요 변경 파일**
+- `DEPLOY.md` (상태표 갱신, 시크릿 사고 2건·`curl.exe`·캐시 지연·원인 분리표 추가)
+- `HISTORY.md` (v2.0·v2.1 커밋 해시 기입, 본 섹션 추가)
+- `.dev.vars` (`SERVICE_KEY` → `TOUR_API_KEY`, 커밋되지 않음)
+
+**남은 조치** — 시크릿 이름으로 평문 노출됐던 API 키의 재발급 검토.
+
+---
+
 ## 전체 통계
 
 | 항목 | 내용 |
@@ -200,6 +243,6 @@ Playwright로 실제 렌더링을 확인해 다음을 찾아 고쳤다. 정적 �
 | 개발 기간 | 2026-03-30 ~ 2026-08-11 |
 | 주요 기술 전환 | Flask → Cloudflare Workers → TourAPI 데이터 소스 전환 |
 | UI 리디자인 횟수 | 3회 (v0.4, v0.6, v2.1) |
-| 보안 수정 | 2회 (API 키 환경변수 분리, `.gitignore` 정비) |
+| 보안 수정 | 3회 (API 키 환경변수 분리, `.gitignore` 정비, 노출 시크릿 삭제) |
 | 기능 추가 | 3회 (날짜 검색, 주말 자동 조회, 필터·찜하기·상세) |
 | README 개편 | 2회 (v0.7, v2.1) |
