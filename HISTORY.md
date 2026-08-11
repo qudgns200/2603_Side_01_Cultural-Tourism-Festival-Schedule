@@ -95,14 +95,61 @@ Glassmorphism 스타일을 Vibrant Festival 스타일로 교체했다. 핑크 �
 
 ---
 
+## v2.0 — K-FESTIVAL 2.0 리뉴얼 (1) 데이터 소스 전환 및 Worker 재작성
+**날짜:** 2026-08-11  
+**브랜치:** `feat/k-festival-2.0`
+
+`K-FESTIVAL_2.0_개발명세서.md`에 따라 "날짜별 축제 검색"에서 **"이번 주말, 어디 갈까?" 주말 행사 발견 서비스**로 리뉴얼을 시작했다. 이번 단계는 백엔드 전면 재작성이다.
+
+**데이터 소스 전환의 배경**
+
+기존 서비스가 라이브에서 모든 조회에 빈 배열을 반환하고 있었다. 상위 API의 인증 오류 응답이 `JSON.parse` 실패 → `catch` → `null` → `200 []` 경로로 삼켜져 장애가 "축제 없음"으로 위장되고 있었기 때문이다. 또한 명세서가 요구하는 이미지·이용요금·카테고리가 기존 행정안전부 전국문화축제표준데이터에는 아예 존재하지 않는 필드임을 확인했다. 이에 한국관광공사 TourAPI(`KorService2`)로 데이터 소스를 전환했다.
+
+전환에 앞서 공식 매뉴얼(`tour_API_Guide/`)과 실제 응답을 함께 검증해 다음을 확정했다.
+
+- `eventStartDate`/`eventEndDate`는 **겹침(overlap) 의미**로 동작한다 → 주말 창만 요청해도 장기 행사가 함께 조회되므로 기존의 31일 소급 호출이 불필요해졌다
+- `cat1~3`·`areacode`·`sigungucode`는 사실상 비어 있고(0.7%), 분류는 `lclsSystm1~3`(100% 채움), 지역은 `lDongRegnCd`(100% 채움)로 판별해야 한다
+- 2026년 행정구역 개편으로 광주·전남이 `전남광주통합특별시`(코드 12)로 통합되어 데이터에 개별 값이 없다 → 지역 목록을 16개 시·도로 조정
+- `mapx`가 경도, `mapy`가 위도로 순서가 반대다
+- 인증 오류는 XML이 아니라 HTTP 403 + JSON(`OpenAPI_ServiceResponse`)으로 온다
+
+**주요 변경**
+
+- **응답 봉투 도입** — 순수 배열에서 `{ok, weekend, counts, truncated, warnings, items, error}` 구조로 변경. 명세서 §19가 요구하는 "API 장애 vs 결과 없음" 구분이 가능해졌다
+- **KST 주말 자동 계산** — UTC로 도는 Worker에서 +09:00 보정 후 판정. 한국 시각 00~09시에 하루가 어긋나던 문제 해결. 일요일 접속 시 오늘 포함 이번 주말을 보여준다
+- **`/api/health` 신설** — 상위 API 연결 상태와 `resultCode`를 즉시 확인. 이번 장애를 몇 초 만에 드러냈을 진단 경로다
+- **오류 처리 전면 개편** — `res.ok`·`OpenAPI_ServiceResponse`·`resultCode`를 순서대로 검사해 `AUTH_ERROR`/`QUOTA_EXCEEDED`/`UPSTREAM_ERROR`로 분류하고 실제 HTTP 상태를 반환한다. 장애를 빈 목록으로 위장하지 않는다
+- **캐싱** — `caches.default` 합성 키(주말 단위) + `cf.cacheTtl` 6시간. 지역 필터는 캐시된 전체 집합에 대한 후처리로 구현해 캐시가 지역별로 쪼개지지 않는다. 개발계정 일 1,000건 제한 대응
+- **필드 정규화** — 카테고리 태그(분류체계 + 행사명 키워드), 지역 판별, HTML 엔티티 디코딩, `http://` 이미지 https 전환, `addr2`의 숫자 부스러기 제거
+- **요금 보강** — 인기 상위 40건에 `detailIntro2`를 호출해 무료 여부를 확정. Workers 무료 플랜의 요청당 subrequest 50개 한도를 고려한 상한이다
+- **상세 라우트** — `GET /api/festivals/:id`. `homepage`가 평문 URL과 `<a>` 태그 두 형태로 오는 것을 모두 처리하고, 프로토콜 검증과 태그 제거를 서버에서 수행해 클라이언트가 `innerHTML`을 쓰지 않아도 되게 했다
+- **라우팅 위생** — 미매칭 `/api/*`는 정적 파일로 흘리지 않고 404 JSON, `OPTIONS` 204, 비허용 메서드 405, `/list.html` → `/` 301
+- **레거시 제거** — 도달 불가 상태로 남아 있던 `functions/api/festivals.js` 삭제
+- **`.gitignore` 정비** — 키 파일·`node_modules/`·`.wrangler/`·개인 설정 등 커밋되면 안 될 항목 보강
+
+**검증 결과** — 겹침 규칙 위반 0건, 중복·필수필드 누락 0건, 태그 커버리지 59/59(100%), 캐시 HIT 동작, 잘못된 키 투입 시 `502 AUTH_ERROR` 정상 노출.
+
+**주요 변경 파일**
+- `src/index.js` (전면 재작성)
+- `wrangler.toml` (`compatibility_date` 상향, `[vars]`, `[observability]`)
+- `.dev.vars.example` (`SERVICE_KEY` → `TOUR_API_KEY`, 발급 안내 보강)
+- `.gitignore` (보안 항목 정비)
+- `functions/api/festivals.js` (삭제)
+- `tour_API_Guide/` (신규 — 공식 매뉴얼 3종)
+- `K-FESTIVAL_2.0_개발명세서.md` (신규)
+
+> **다음 단계 (v2.1 예정)** — 프론트엔드 재구성. `public/index.html`·`public/list.html`은 아직 옛 응답 형식을 읽고 있어 **현재 브랜치 상태로는 화면이 동작하지 않는다.** iframe 제거 및 단일 페이지 통합, 카드 UI 리뉴얼, 지역·날짜·무료·카테고리 필터, 상세 모달, 찜하기, 그리고 `API.md`·`CLAUDE.md`·`README.md` 갱신이 남아 있다.
+
+---
+
 ## 전체 통계
 
 | 항목 | 내용 |
 |------|------|
-| 전체 커밋 수 | 28개 |
-| 개발 기간 | 2026-03-30 ~ 2026-07-08 (약 3개월) |
-| 주요 기술 전환 | Flask → Cloudflare Workers |
-| UI 리디자인 횟수 | 2회 |
-| 보안 수정 | 1회 (API 키 환경변수 분리) |
-| 기능 추가 | 1회 (날짜 검색) |
+| 전체 커밋 수 | 28개 (+ v2.0 작업 진행 중) |
+| 개발 기간 | 2026-03-30 ~ 진행 중 |
+| 주요 기술 전환 | Flask → Cloudflare Workers → TourAPI 데이터 소스 전환 |
+| UI 리디자인 횟수 | 2회 (v2.0 리뉴얼 진행 중) |
+| 보안 수정 | 2회 (API 키 환경변수 분리, `.gitignore` 정비) |
+| 기능 추가 | 2회 (날짜 검색, 주말 자동 조회) |
 | README 개편 | 1회 (v0.7 완성본 기준 전면 재작성) |

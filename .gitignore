@@ -1,6 +1,48 @@
+# ── 비밀정보 (절대 커밋 금지) ──────────────────────────────
+# 공공데이터포털 API 키가 들어있는 파일들
+.dev.vars
+.dev.vars.local
+.dev.vars.*.local
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+# 템플릿은 예외적으로 추적한다 (실제 키 없음)
+!.dev.vars.example
+!.env.example
+
+# ── Cloudflare / Wrangler ─────────────────────────────────
+.wrangler/
+.mf/
+dist/
+wrangler.toml.bak
+
+# ── Node ──────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+
+# ── 에디터 / 도구 ─────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+# Claude Code: 팀 공유 설정(settings.json)은 추적, 개인 로컬 설정은 제외
+.claude/settings.local.json
+
+# ── OS ────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Python (v0.1 Flask 시절 잔재, 호환 목적 유지) ─────────
 __pycache__/
 *.pyc
-.vscode/
 venv/
-.env
-.dev.vars
+
+# ── 임시 / 로그 ───────────────────────────────────────────
+*.log
+tmp/
+temp/

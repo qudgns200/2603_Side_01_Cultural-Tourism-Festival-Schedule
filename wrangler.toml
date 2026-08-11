@@ -1,7 +1,14 @@
 name = "ctfschedule"
 main = "src/index.js"
-compatibility_date = "2024-03-29"
+compatibility_date = "2025-11-01"
 
 [assets]
 directory = "./public"
 binding = "ASSETS"
+
+[vars]
+MOBILE_APP = "K-FESTIVAL"
+
+# 키 만료·쿼터 초과 같은 상위 API 장애를 wrangler tail로 즉시 확인하기 위함
+[observability]
+enabled = true
